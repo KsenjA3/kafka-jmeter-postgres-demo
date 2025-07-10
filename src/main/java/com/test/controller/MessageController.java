@@ -10,201 +10,74 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
 
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
 public class MessageController {
-    
     private static final Logger logger = LoggerFactory.getLogger(MessageController.class);
-    
     private final MessageService messageService;
-    
+
     public MessageController(MessageService messageService) {
         this.messageService = messageService;
     }
-    
-    /**
-     * Send message to Kafka
-     * POST /api/messages
-     */
+
+    // Приём массива метрик или одной метрики (JSON) и сохранение в БД
     @PostMapping("/messages")
-    public ResponseEntity<Map<String, Object>> sendMessage(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> saveMessages(@RequestBody String metricsJson) {
         try {
-            String content = request.get("content");
-            if (content == null || content.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Message content is required"));
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(metricsJson);
+            List<Message> saved = new ArrayList<>();
+            if (root.isArray()) {
+                for (JsonNode metric : root) {
+                    Message msg = mapper.treeToValue(metric, Message.class);
+                    saved.add(messageService.saveMessage(msg));
+                }
+            } else if (root.has("metrics")) {
+                for (JsonNode metric : root.path("metrics")) {
+                    Message msg = mapper.treeToValue(metric, Message.class);
+                    saved.add(messageService.saveMessage(msg));
+                }
+            } else {
+                Message msg = mapper.treeToValue(root, Message.class);
+                saved.add(messageService.saveMessage(msg));
             }
-            
-            messageService.sendMessage(content);
-            
-            return ResponseEntity.ok(Map.of(
-                "status", "success",
-                "message", "Message sent to Kafka",
-                "content", content
-            ));
-            
+            return ResponseEntity.ok(Map.of("status", "success", "saved", saved.size()));
         } catch (Exception e) {
-            logger.error("Error sending message: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to send message: " + e.getMessage()));
+            logger.error("Error saving messages: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
         }
     }
-    
-    /**
-     * Get all messages from database
-     * GET /api/messages
-     */
+
+    // Получить все сообщения
     @GetMapping("/messages")
     public ResponseEntity<List<Message>> getAllMessages() {
-        try {
-            List<Message> messages = messageService.getAllMessages();
-            return ResponseEntity.ok(messages);
-        } catch (Exception e) {
-            logger.error("Error getting messages: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+        return ResponseEntity.ok(messageService.getAllMessages());
     }
-    
-    /**
-     * Get messages by source
-     * GET /api/messages/source/{source}
-     */
-    @GetMapping("/messages/source/{source}")
-    public ResponseEntity<List<Message>> getMessagesBySource(@PathVariable String source) {
-        try {
-            List<Message> messages = messageService.getMessagesBySource(source);
-            return ResponseEntity.ok(messages);
-        } catch (Exception e) {
-            logger.error("Error getting messages by source: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-        }
+
+    // Получить сообщение по id
+    @GetMapping("/messages/{id}")
+    public ResponseEntity<?> getMessageById(@PathVariable Long id) {
+        Optional<Message> msg = messageService.getMessageById(id);
+        return msg.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
-    
-    /**
-     * Get message count
-     * GET /api/count
-     */
-    @GetMapping("/count")
+
+    // Получить количество сообщений
+    @GetMapping("/messages/count")
     public ResponseEntity<Map<String, Object>> getMessageCount() {
-        try {
-            long count = messageService.getMessageCount();
-            return ResponseEntity.ok(Map.of(
-                "count", count,
-                "timestamp", System.currentTimeMillis()
-            ));
-        } catch (Exception e) {
-            logger.error("Error getting message count: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to get message count"));
-        }
+        long count = messageService.getMessageCount();
+        return ResponseEntity.ok(Map.of("count", count));
     }
-    
-    /**
-     * Get statistics
-     * GET /api/statistics
-     */
-    @GetMapping("/statistics")
-    public ResponseEntity<Map<String, Object>> getStatistics() {
-        try {
-            Map<String, Object> statistics = messageService.getStatistics();
-            return ResponseEntity.ok(statistics);
-        } catch (Exception e) {
-            logger.error("Error getting statistics: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to get statistics"));
-        }
-    }
-    
-    /**
-     * Health check
-     * GET /api/health
-     */
-    @GetMapping("/health")
-    public ResponseEntity<Map<String, Object>> health() {
-        try {
-            long messageCount = messageService.getMessageCount();
-            return ResponseEntity.ok(Map.of(
-                "status", "healthy",
-                "service", "kafka-jmeter-postgres-demo",
-                "messageCount", messageCount,
-                "timestamp", System.currentTimeMillis()
-            ));
-        } catch (Exception e) {
-            logger.error("Health check failed: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(Map.of(
-                    "status", "unhealthy",
-                    "error", e.getMessage()
-                ));
-        }
-    }
-    
-    /**
-     * Clear all messages (for testing)
-     * DELETE /api/messages
-     */
+
+    // Удалить все сообщения
     @DeleteMapping("/messages")
     public ResponseEntity<Map<String, Object>> clearAllMessages() {
-        try {
-            messageService.clearAllMessages();
-            return ResponseEntity.ok(Map.of(
-                "status", "success",
-                "message", "All messages cleared"
-            ));
-        } catch (Exception e) {
-            logger.error("Error clearing messages: {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to clear messages"));
-        }
-    }
-    
-    /**
-     * Legacy endpoint for JMeter compatibility
-     * POST /send
-     */
-    @PostMapping("/send")
-    public ResponseEntity<Map<String, Object>> sendMessageLegacy(@RequestBody String content) {
-        try {
-            if (content == null || content.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Message content is required"));
-            }
-            
-            messageService.sendMessage(content);
-            
-            return ResponseEntity.ok(Map.of(
-                "status", "success",
-                "messageId", java.util.UUID.randomUUID().toString(),
-                "count", messageService.getMessageCount()
-            ));
-            
-        } catch (Exception e) {
-            logger.error("Error sending message (legacy): {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Internal server error: " + e.getMessage()));
-        }
-    }
-    
-    /**
-     * Legacy endpoint for JMeter compatibility
-     * GET /query
-     */
-    @GetMapping("/query")
-    public ResponseEntity<Map<String, Object>> queryLegacy() {
-        try {
-            long totalMessages = messageService.getMessageCount();
-            return ResponseEntity.ok(Map.of(
-                "status", "success",
-                "query", "SELECT * FROM messages",
-                "totalMessages", totalMessages,
-                "timestamp", System.currentTimeMillis()
-            ));
-        } catch (Exception e) {
-            logger.error("Error processing query request (legacy): {}", e.getMessage(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Internal server error: " + e.getMessage()));
-        }
+        messageService.clearAllMessages();
+        return ResponseEntity.ok(Map.of("status", "success", "message", "All messages cleared"));
     }
 } 

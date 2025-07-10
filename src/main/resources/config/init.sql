@@ -7,19 +7,15 @@ CREATE DATABASE IF NOT EXISTS benchmark;
 -- Create messages table
 CREATE TABLE IF NOT EXISTS messages (
     id BIGSERIAL PRIMARY KEY,
-    content TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    source VARCHAR(255),
-    sequence_number BIGINT
+    name VARCHAR(500) NOT NULL,
+    timestamp BIGINT NOT NULL,
+    data_type VARCHAR(50) NOT NULL,
+    value TEXT NOT NULL
 );
 
 -- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_messages_source ON messages(source);
-CREATE INDEX IF NOT EXISTS idx_messages_sequence_number ON messages(sequence_number DESC);
-
--- Create sequence for sequence_number if needed
-CREATE SEQUENCE IF NOT EXISTS messages_sequence_number_seq;
+CREATE INDEX IF NOT EXISTS idx_messages_name ON messages(name);
+CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
 
 -- Grant permissions
 GRANT ALL PRIVILEGES ON DATABASE benchmark TO benchmark;

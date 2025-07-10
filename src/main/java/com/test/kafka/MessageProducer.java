@@ -23,10 +23,14 @@ public class MessageProducer {
         this.topic = topic;
     }
     
+    //Упрощённая версия отправки: вызывает следующий метод с key = null
     public void sendMessage(String message) {
         sendMessage(message, null);
     }
     
+    //Отправляет сообщение в Kafka с возможностью указать ключ (key)
+    //Использует асинхронную отправку
+    //С помощью whenComplete добавляется обработчик результат
     public void sendMessage(String message, String key) {
         try {
             CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, key, message);
@@ -46,6 +50,7 @@ public class MessageProducer {
         }
     }
     
+    //Синхронная отправка сообщения (метод блокируется, пока не получит результат)
     public void sendMessageSync(String message) {
         try {
             SendResult<String, String> result = kafkaTemplate.send(topic, message).get();
