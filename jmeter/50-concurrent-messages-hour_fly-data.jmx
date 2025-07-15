@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Hour Duration Test Plan" enabled="true">
+      <stringProp name="TestPlan.comments">Simple test plan for 50 concurrent messages with end-to-end timing</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <stringProp name="TestPlan.user_define_classpath"></stringProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="50 Concurrent Messages Every Second Duration Hour">
+        <intProp name="ThreadGroup.num_threads">15</intProp> 
+        <intProp name="ThreadGroup.ramp_time">5</intProp>
+        <longProp name="ThreadGroup.delay">0</longProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">1</stringProp> <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+        <boolProp name="ThreadGroup.scheduler">true</boolProp> 
+        <stringProp name="ThreadGroup.duration">5</stringProp> </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Send Message to API">
+          <intProp name="HTTPSampler.connect_timeout">5000</intProp>
+          <intProp name="HTTPSampler.response_timeout">30000</intProp>
+          <stringProp name="HTTPSampler.domain">localhost</stringProp>
+          <stringProp name="HTTPSampler.port">8080</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path">/api/messages</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">${messageContent}</stringProp> <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <JSR223PreProcessor guiclass="TestBeanGUI" testclass="JSR223PreProcessor" testname="Generate JSON Message" enabled="true">
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="parameters"></stringProp>
+            <stringProp name="filename"></stringProp>
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="script">
+import java.util.UUID
+import groovy.json.JsonOutput
+
+// Получаем ID текущего потока и номер итерации (если нужно для уникальности)
+def threadNum = ctx.getThreadNum()
+def iteration = vars.getIteration()
+
+// Генерируем уникальный ID для сообщения
+def messageId = UUID.randomUUID().toString()
+
+// Генерируем уникальное содержимое сообщения, например, с timestamp или ID потока
+def uniqueContent = "Message from thread ${threadNum}, iteration ${iteration} with ID ${messageId} at ${System.currentTimeMillis()}"
+
+// Создаем JSON-объект
+def jsonMessage = [
+    id: messageId,
+    content: uniqueContent,
+    timestamp: System.currentTimeMillis()
+]
+
+// Конвертируем JSON-объект в строку и сохраняем в переменную JMeter
+// Эта переменная (${messageContent}) будет использоваться в теле HTTP-запроса
+vars.put("messageContent", JsonOutput.toJson(jsonMessage))
+
+// Опционально: вывести в лог для отладки
+// log.info("Generated JSON: " + vars.get("messageContent"))
+            </stringProp>
+          </JSR223PreProcessor>
+          <hashTree/>
+          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Response Code Assertion" enabled="true">
+            <collectionProp name="Asserion.test_strings">
+              <stringProp name="49586">200</stringProp>
+            </collectionProp>
+            <stringProp name="Assertion.custom_message">Expected response code 200</stringProp>
+            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
+            <boolProp name="Assertion.assume_success">false</boolProp>
+            <intProp name="Assertion.test_type">8</intProp>
+          </ResponseAssertion>
+          <hashTree/>
+        </hashTree>
+      </hashTree>
+    </hashTree>
+
+
+    <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Wait for DB Update" enabled="true">
+      <intProp name="ThreadGroup.num_threads">1</intProp>
+      <intProp name="ThreadGroup.ramp_time">1</intProp>
+      <longProp name="ThreadGroup.delay">0</longProp>
+      <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+      <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+        <stringProp name="LoopController.loops">1</stringProp>
+        <boolProp name="LoopController.continue_forever">false</boolProp>
+      </elementProp>
+    </ThreadGroup>
+    <hashTree>
+      <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Get Initial Count" enabled="true">
+        <intProp name="HTTPSampler.connect_timeout">5000</intProp>
+        <intProp name="HTTPSampler.response_timeout">10000</intProp>
+        <stringProp name="HTTPSampler.domain">localhost</stringProp>
+        <stringProp name="HTTPSampler.port">8080</stringProp>
+        <stringProp name="HTTPSampler.protocol">http</stringProp>
+        <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+        <stringProp name="HTTPSampler.path">/api/messages/count</stringProp>
+        <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+        <stringProp name="HTTPSampler.method">GET</stringProp>
+        <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+        <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+        <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+          <collectionProp name="Arguments.arguments"/>
+        </elementProp>
+      </HTTPSamplerProxy>
+      <hashTree>
+        <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract Initial Count" enabled="true">
+          <stringProp name="JSONPostProcessor.referenceNames">initialCount</stringProp>
+          <stringProp name="JSONPostProcessor.jsonPathExprs">$.count</stringProp>
+          <stringProp name="JSONPostProcessor.match_numbers"></stringProp>
+        </JSONPostProcessor>
+        <hashTree/>
+        <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Calculate Expected Count" enabled="true">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="parameters"></stringProp>
+          <stringProp name="filename"></stringProp>
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="script">
+def metricsPerMessage = 4850
+def totalThreads = 10800 // Обновленное значение для общего числа потоков
+def initialCountStr = vars.get("initialCount") ?: "0"
+def initialCount = initialCountStr.toInteger()
+def expectedCount = initialCount + metricsPerMessage * totalThreads
+vars.put("expectedCount", expectedCount.toString())
+vars.put("startWaitTime", String.valueOf(System.currentTimeMillis()))
+          </stringProp>
+        </JSR223PostProcessor>
+        <hashTree/>
+      </hashTree>
+
+      <WhileController guiclass="WhileControllerGui" testclass="WhileController" testname="Wait for Database Update" enabled="true">
+          <stringProp name="WhileController.condition">
+            ${__groovy(Integer.parseInt(vars.get('currentCount') ?: '0') &lt; Integer.parseInt(vars.get('expectedCount') ?: '0'))}
+          </stringProp>
+
+      </WhileController>
+
+      <hashTree>
+
+        <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer" testname="Wait 200ms" enabled="true">
+          <stringProp name="ConstantTimer.delay">200</stringProp>
+        </ConstantTimer>
+        <hashTree/>
+        
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Check Database Count" enabled="true">
+          <intProp name="HTTPSampler.connect_timeout">5000</intProp>
+          <intProp name="HTTPSampler.response_timeout">10000</intProp>
+          <stringProp name="HTTPSampler.domain">localhost</stringProp>
+          <stringProp name="HTTPSampler.port">8080</stringProp>
+          <stringProp name="HTTPSampler.protocol">http</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path">/api/messages/count</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+        </HTTPSamplerProxy>
+
+        <hashTree>
+
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract Current Count" enabled="true">
+            <stringProp name="JSONPostProcessor.referenceNames">currentCount</stringProp>
+            <stringProp name="JSONPostProcessor.jsonPathExprs">$.count</stringProp>
+            <stringProp name="JSONPostProcessor.match_numbers"></stringProp>
+          </JSONPostProcessor>
+          <hashTree/>
+
+        </hashTree>
+
+        <DebugSampler guiclass="TestBeanGUI" testclass="DebugSampler" testname="Debug Sampler: Vars after count check" enabled="true"/>
+        <hashTree/>
+
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Log Vars to jmeter.log" enabled="true">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="parameters"></stringProp>
+          <stringProp name="filename"></stringProp>
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="script">
+log.info("currentCount=" + vars.get("currentCount"))
+log.info("expectedCount=" + vars.get("expectedCount"))
+log.info("initialCount=" + vars.get("initialCount"))
+          </stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+        
+      </hashTree>
+
+
+
+
+      <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Log Wait Result" enabled="true">
+        <stringProp name="scriptLanguage">groovy</stringProp>
+        <stringProp name="parameters"></stringProp>
+        <stringProp name="filename"></stringProp>
+        <stringProp name="cacheKey">true</stringProp>
+        <stringProp name="script">
+def waited = (System.currentTimeMillis() - Long.parseLong(vars.get("startWaitTime"))) / 1000
+log.info("Ожидание завершено. Текущее количество: " + vars.get("currentCount") +
+          ", Ожидалось: " + vars.get("expectedCount") +
+          ", Ждали секунд: " + waited)
+        </stringProp>
+      </JSR223Sampler>
+      <hashTree/>
+
+      <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Force Thread Stop" enabled="true">
+        <stringProp name="scriptLanguage">groovy</stringProp>
+        <stringProp name="parameters"></stringProp>
+        <stringProp name="filename"></stringProp>
+        <stringProp name="cacheKey">true</stringProp>
+        <stringProp name="script">ctx.getThread().stop()</stringProp>
+      </JSR223Sampler>
+      <hashTree/>
+
+    </hashTree>
+
+
+    <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+      <boolProp name="ResultCollector.error_logging">false</boolProp> <objProp>
+        <name>saveConfig</name><value class="SampleSaveConfiguration"><time>true</time><latency>true</latency><timestamp>true</timestamp><success>true</success><label>true</label><code>true</code><message>true</message><threadName>true</threadName><dataType>true</dataType><encoding>false</encoding><assertions>true</assertions><subresults>true</subresults><responseData>false</responseData><samplerData>false</samplerData><xml>false</xml><fieldNames>true</fieldNames><responseHeaders>false</responseHeaders><requestHeaders>false</requestHeaders><responseDataOnError>false</responseDataOnError><saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage><assertionsResultsToSave>0</assertionsResultsToSave><bytes>true</bytes><sentBytes>true</sentBytes><url>true</url><threadCounts>true</threadCounts><idleTime>true</idleTime><connectTime>true</connectTime></value>
+      </objProp>
+    <stringProp name="filename"></stringProp>
+    </ResultCollector>
+    <hashTree/>
+  </hashTree>
+</jmeterTestPlan>

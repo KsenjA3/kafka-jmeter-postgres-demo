@@ -14,6 +14,7 @@ import java.util.Optional;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
+import com.test.kafka.MessageProducer;
 
 @RestController
 @RequestMapping("/api")
@@ -21,35 +22,22 @@ import java.util.ArrayList;
 public class MessageController {
     private static final Logger logger = LoggerFactory.getLogger(MessageController.class);
     private final MessageService messageService;
+    private final MessageProducer messageProducer;
 
-    public MessageController(MessageService messageService) {
+    public MessageController(MessageService messageService, MessageProducer messageProducer) {
         this.messageService = messageService;
+        this.messageProducer = messageProducer;
     }
 
     // Приём массива метрик или одной метрики (JSON) и сохранение в БД
     @PostMapping("/messages")
     public ResponseEntity<?> saveMessages(@RequestBody String metricsJson) {
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(metricsJson);
-            List<Message> saved = new ArrayList<>();
-            if (root.isArray()) {
-                for (JsonNode metric : root) {
-                    Message msg = mapper.treeToValue(metric, Message.class);
-                    saved.add(messageService.saveMessage(msg));
-                }
-            } else if (root.has("metrics")) {
-                for (JsonNode metric : root.path("metrics")) {
-                    Message msg = mapper.treeToValue(metric, Message.class);
-                    saved.add(messageService.saveMessage(msg));
-                }
-            } else {
-                Message msg = mapper.treeToValue(root, Message.class);
-                saved.add(messageService.saveMessage(msg));
-            }
-            return ResponseEntity.ok(Map.of("status", "success", "saved", saved.size()));
+//            logger.info("MessageController - metricsJson: " + metricsJson);
+            messageProducer.sendMessage(metricsJson); // Отправляем в Kafka
+            return ResponseEntity.ok(Map.of("status", "success", "message", "Message sent to Kafka"));
         } catch (Exception e) {
-            logger.error("Error saving messages: {}", e.getMessage(), e);
+            logger.error("Error sending message to Kafka: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
         }
     }

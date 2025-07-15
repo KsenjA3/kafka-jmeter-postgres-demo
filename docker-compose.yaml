@@ -103,5 +103,7 @@ services:
     # psql -U benchmark -d benchmark    Подключиться к PostgreSQL внутри контейнера
     # \dt                               Показать список всех таблиц
     # SELECT * FROM messages;
+    # SELECT count(*)  FROM messages;
+    # \d messages
     # \q                                Выйти из psql
     # exit                              Выйти из контейнера

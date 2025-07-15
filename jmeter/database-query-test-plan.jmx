@@ -1,59 +1,161 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.2">
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Database Query Consumer Test Plan" enabled="true">
-      <stringProp name="TestPlan.comments">Test plan for querying the consumer endpoint /query</stringProp>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Database Query JDBC Test Plan" enabled="true">
+      <stringProp name="TestPlan.comments">Test plan for monitoring the number of records in the messages table via JDBC</stringProp>
       <boolProp name="TestPlan.functional_mode">false</boolProp>
       <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
       <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
       <stringProp name="TestPlan.user_define_classpath"></stringProp>
     </TestPlan>
     <hashTree>
-      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Consumer Query Thread Group" enabled="true">
+
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="JDBC Monitor Thread Group" enabled="true">
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControllerGui" testclass="LoopController" testname="Loop Controller" enabled="true">
           <boolProp name="LoopController.continue_forever">false</boolProp>
-          <stringProp name="LoopController.loops">10</stringProp>
+          <stringProp name="LoopController.loops">1</stringProp>
         </elementProp>
-        <stringProp name="ThreadGroup.num_threads">100</stringProp>
-        <stringProp name="ThreadGroup.ramp_time">10</stringProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">1</stringProp>
         <boolProp name="ThreadGroup.scheduler">false</boolProp>
         <stringProp name="ThreadGroup.duration"></stringProp>
         <stringProp name="ThreadGroup.delay">0</stringProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
       </ThreadGroup>
       <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="Query Consumer Endpoint" enabled="true">
-          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
-            <collectionProp name="Arguments.arguments"/>
-          </elementProp>
-          <stringProp name="HTTPSampler.domain">localhost</stringProp>
-          <stringProp name="HTTPSampler.port">8080</stringProp>
-          <stringProp name="HTTPSampler.protocol">http</stringProp>
-          <stringProp name="HTTPSampler.contentEncoding"></stringProp>
-          <stringProp name="HTTPSampler.path">/query</stringProp>
-          <stringProp name="HTTPSampler.method">GET</stringProp>
-          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
-          <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
-          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
-          <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
-          <stringProp name="HTTPSampler.embedded_url_re"></stringProp>
-          <stringProp name="HTTPSampler.connect_timeout">5000</stringProp>
-          <stringProp name="HTTPSampler.response_timeout">30000</stringProp>
-        </HTTPSamplerProxy>
+
+        <ConfigTestElement guiclass="TestBeanGUI" testclass="ConfigTestElement" testname="JDBC Connection Configuration" enabled="true">
+          <stringProp name="dataSource">benchmark</stringProp>
+          <stringProp name="dbUrl">jdbc:postgresql://localhost:5432/benchmark</stringProp>
+          <stringProp name="driver">org.postgresql.Driver</stringProp>
+          <stringProp name="username">benchmark</stringProp>
+          <stringProp name="password">benchmark</stringProp>
+          <stringProp name="poolMax">10</stringProp>
+          <stringProp name="timeout">10000</stringProp>
+          <stringProp name="trimInterval">60000</stringProp>
+          <stringProp name="autocommit">true</stringProp>
+        </ConfigTestElement>
+        <hashTree/>
+
+        <!-- Получить начальное значение COUNT(*) -->
+        <JDBCSampler guiclass="TestBeanGUI" testclass="JDBCSampler" testname="JDBC Request: Get Initial Count" enabled="true">
+          <stringProp name="dataSource">benchmark</stringProp>
+          <stringProp name="queryType">Select Statement</stringProp>
+          <stringProp name="query">SELECT COUNT(*) FROM messages;</stringProp>
+          <stringProp name="queryArguments"></stringProp>
+          <stringProp name="queryArgumentsTypes"></stringProp>
+          <stringProp name="variableNames">initial_count</stringProp>
+          <stringProp name="resultSetHandler">Store as String</stringProp>
+          <stringProp name="queryTimeout"></stringProp>
+        </JDBCSampler>
+
         <hashTree>
-          <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="Response Code Assertion" enabled="true">
-            <collectionProp name="Asserion.test_strings">
-              <stringProp name="49586">200</stringProp>
-            </collectionProp>
-            <stringProp name="Assertion.custom_message">Expected response code 200</stringProp>
-            <stringProp name="Assertion.test_field">Assertion.response_code</stringProp>
-            <boolProp name="Assertion.assume_success">false</boolProp>
-            <intProp name="Assertion.test_type">8</intProp>
-          </ResponseAssertion>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Parse initial_count as int" enabled="true">
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="parameters"></stringProp>
+            <stringProp name="filename"></stringProp>
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="script">
+            if (vars.get("initial_count") == null || vars.get("initial_count") == "") {
+    vars.put("initial_count", "0")
+} else {
+    try {
+        def val = Integer.parseInt(vars.get("initial_count"))
+        vars.put("initial_count", val.toString())
+    } catch (Exception e) {
+        vars.put("initial_count", "0")
+    }
+}</stringProp>
+          </JSR223PostProcessor>
           <hashTree/>
         </hashTree>
+
+        <!-- JSR223 Sampler: инициализация времени старта ожидания -->
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Init Wait Start Time" enabled="true">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="parameters"></stringProp>
+          <stringProp name="filename"></stringProp>
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="script">
+if (vars.get("startWaitTime") == null) {
+    vars.put("startWaitTime", String.valueOf(System.currentTimeMillis()))
+}
+          </stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+
+        <!-- WhileController: ждем появления всех записей или таймаута -->
+        <WhileController guiclass="WhileControllerGui" testclass="WhileController" testname="Wait for all messages" enabled="true">
+          <stringProp name="WhileController.condition">
+            ${__groovy(
+              def msg = vars.get('msg_count');
+              def init = vars.get('initial_count');              
+              msg = (msg == null &#124;&#124; msg == '') ? '0' : msg;
+              init = (init == null &#124;&#124; init == '') ? '0' : init;
+              Integer.parseInt(msg) &lt; (Integer.parseInt(init) + (15*4850))
+            )}
+          </stringProp>
+                 <!--(parseInt(${msg_count}) &lt; (parseInt(${initial_count}) + (3*4850))) &amp;&amp; ((Date.now() - parseInt(${startWaitTime})) &lt; 600000)-->          
+        </WhileController>
+        <hashTree>
+          
+          <JDBCSampler guiclass="TestBeanGUI" testclass="JDBCSampler" testname="JDBC Request: Count Messages" enabled="true">
+            <stringProp name="dataSource">benchmark</stringProp>
+            <stringProp name="queryType">Select Statement</stringProp>
+            <stringProp name="query">SELECT COUNT(*) FROM messages;</stringProp>
+            <stringProp name="queryArguments"></stringProp>
+            <stringProp name="queryArgumentsTypes"></stringProp>
+            <stringProp name="variableNames">msg_count</stringProp>
+            <stringProp name="resultSetHandler">Store as String</stringProp>
+            <stringProp name="queryTimeout"></stringProp>
+          </JDBCSampler>
+
+          <hashTree>
+            <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Parse msg_count as int" enabled="true">
+              <stringProp name="scriptLanguage">groovy</stringProp>
+              <stringProp name="parameters"></stringProp>
+              <stringProp name="filename"></stringProp>
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="script">
+if (vars.get("msg_count") == null || vars.get("msg_count") == "") {
+    vars.put("msg_count", "0")
+} else {
+    try {
+        def val = Integer.parseInt(vars.get("msg_count"))
+        vars.put("msg_count", val.toString())
+    } catch (Exception e) {
+        vars.put("msg_count", "0")
+    }
+}
+              </stringProp>
+            </JSR223PostProcessor>
+            <hashTree/>
+
+        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Log Vars to jmeter.log" enabled="true">
+          <stringProp name="scriptLanguage">groovy</stringProp>
+          <stringProp name="parameters"></stringProp>
+          <stringProp name="filename"></stringProp>
+          <stringProp name="cacheKey">true</stringProp>
+          <stringProp name="script">
+log.info("!msg_count=" + vars.get("msg_count"))
+log.info("!expected_Count=" + vars.get("initial_count") + (15*4850))
+log.info("!initial_count=" + vars.get("initial_count"))
+          </stringProp>
+        </JSR223Sampler>
+        <hashTree/>
+
+          </hashTree>
+
+          <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer" testname="Wait 100ms" enabled="true">
+            <stringProp name="ConstantTimer.delay">100</stringProp>
+          </ConstantTimer>
+          <hashTree/>
+          
+        </hashTree>
       </hashTree>
+
+
       <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
         <boolProp name="ResultCollector.error_logging">false</boolProp>
         <objProp>
@@ -71,13 +173,13 @@
             <encoding>false</encoding>
             <assertions>true</assertions>
             <subresults>true</subresults>
-            <responseData>false</responseData>
+            <responseData>true</responseData>
             <samplerData>false</samplerData>
             <xml>false</xml>
             <fieldNames>true</fieldNames>
             <responseHeaders>false</responseHeaders>
             <requestHeaders>false</requestHeaders>
-            <responseDataOnError>false</responseDataOnError>
+            <responseDataOnError>true</responseDataOnError>
             <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
             <assertionsResultsToSave>0</assertionsResultsToSave>
             <bytes>true</bytes>
@@ -88,7 +190,7 @@
             <connectTime>true</connectTime>
           </value>
         </objProp>
-        <stringProp name="filename">database-query-results.jtl</stringProp>
+        <stringProp name="filename"></stringProp>
       </ResultCollector>
       <hashTree/>
     </hashTree>

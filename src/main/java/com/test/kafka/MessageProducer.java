@@ -32,6 +32,7 @@ public class MessageProducer {
     //Использует асинхронную отправку
     //С помощью whenComplete добавляется обработчик результат
     public void sendMessage(String message, String key) {
+//        logger.info("MessageProducer - message: " + message);
         try {
             CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, key, message);
             

@@ -16,17 +16,18 @@ import org.springframework.stereotype.Service;
 public class MessageConsumer {
     private static final Logger logger = LoggerFactory.getLogger(MessageConsumer.class);
     private final MessageRepository messageRepository;
-
+    
     public MessageConsumer(MessageRepository messageRepository) {
         this.messageRepository = messageRepository;
     }
-
+    
     @KafkaListener(topics = "${kafka.topic}", groupId = "${spring.kafka.consumer.group-id}")
     public void listen(@Payload String messageJson,
                       @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
                       @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
                       @Header(KafkaHeaders.OFFSET) long offset) {
         try {
+//            logger.info("MessageConsumer - messageJson: " + messageJson);
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(messageJson);
             for (JsonNode metric : root.path("metrics")) {
@@ -43,10 +44,10 @@ public class MessageConsumer {
             throw new RuntimeException("Failed to process Kafka message", e);
         }
     }
-
-    @KafkaListener(topics = "${kafka.topic}.dlq", groupId = "${spring.kafka.consumer.group-id}.dlq")
-    public void listenDeadLetterQueue(@Payload String message) {
-        logger.warn("Processing message from dead letter queue: {}", message);
-        // Handle failed messages
-    }
+    
+//    @KafkaListener(topics = "${kafka.topic}.dlq", groupId = "${spring.kafka.consumer.group-id}.dlq")
+//    public void listenDeadLetterQueue(@Payload String message) {
+//        logger.warn("Processing message from dead letter queue: {}", message);
+//        // Handle failed messages
+//    }
 } 
