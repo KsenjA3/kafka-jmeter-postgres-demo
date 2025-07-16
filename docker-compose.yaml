@@ -99,7 +99,7 @@ services:
 #  docker-compose down -v
 
 
-    # docker exec -it postgres bash     Зайти в контейнер PostgreSQL
+    # docker exec -it postgres bash d    Зайти в контейнер PostgreSQL
     # psql -U benchmark -d benchmark    Подключиться к PostgreSQL внутри контейнера
     # \dt                               Показать список всех таблиц
     # SELECT * FROM messages;

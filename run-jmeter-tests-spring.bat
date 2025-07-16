@@ -15,7 +15,9 @@ set "RESULTS_FILE=%JMETER_DIR%\50-concurrent-messages-simple-results-%TS%.jtl"
 set "HTML_REPORT=%JMETER_DIR%\50-concurrent-messages-simple-html-report-%TS%"
 set "DB_RESULTS_FILE=%JMETER_DIR%\database-query-results-%TS%.jtl"
 set "DB_HTML_REPORT=%JMETER_DIR%\database-query-html-report-%TS%"
-set "DB_TEST_PLAN=%JMETER_DIR%\database-query-test-plan.jmx"
+set "DB_TEST_PLAN=%JMETER_DIR%\JDBC-Request1.jmx"
+set "JMETER_JDBC_LOG=%JMETER_DIR%\jmeter-jdbc-%TS%.log"
+set "JMETER_HTTP_LOG=%JMETER_DIR%\jmeter-http-%TS%.log"
 
 REM Удалить старые папки отчетов (если есть)
 for /d %%D in ("%JMETER_DIR%\50-concurrent-messages-simple-html-report*") do rd /s /q "%%D"
@@ -28,8 +30,7 @@ if not exist "%DB_HTML_REPORT%" mkdir "%DB_HTML_REPORT%"
 
 echo.
 echo Running JDBC monitoring scenario in parallel...
-start "JDBC Monitor" cmd /c "cd /d c:\Users\User\apache-jmeter-5.6.3 && bin\jmeter.bat -n -t %DB_TEST_PLAN% -l %DB_RESULTS_FILE% -e -o %DB_HTML_REPORT%"
-
+start "JDBC Monitor" cmd /c "cd /d c:\Users\User\apache-jmeter-5.6.3 && bin\jmeter.bat -n -t %DB_TEST_PLAN% -l %DB_RESULTS_FILE% -e -o %DB_HTML_REPORT% -j %JMETER_JDBC_LOG%"
 
 
 
@@ -45,7 +46,7 @@ echo Results: %RESULTS_FILE%"
 echo HTML Report: %HTML_REPORT%"
 echo.
 cd /d c:\Users\User\apache-jmeter-5.6.3
-bin\jmeter.bat -n -t %TEST_PLAN% -l %RESULTS_FILE% -e -o %HTML_REPORT%"
+bin\jmeter.bat -n -t %TEST_PLAN% -l %RESULTS_FILE% -e -o %HTML_REPORT% -j %JMETER_HTTP_LOG%"
 
 cd /d "%PROJECT_DIR%"
 echo.

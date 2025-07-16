@@ -8,6 +8,7 @@
       <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
       <stringProp name="TestPlan.user_define_classpath"></stringProp>
     </TestPlan>
+	
     <hashTree>
 
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="JDBC Monitor Thread Group" enabled="true">
@@ -23,6 +24,7 @@
         <stringProp name="ThreadGroup.delay">0</stringProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
       </ThreadGroup>
+	  
       <hashTree>
 
         <ConfigTestElement guiclass="TestBeanGUI" testclass="ConfigTestElement" testname="JDBC Connection Configuration" enabled="true">
@@ -36,7 +38,7 @@
           <stringProp name="trimInterval">60000</stringProp>
           <stringProp name="autocommit">true</stringProp>
         </ConfigTestElement>
-        <hashTree/>
+        <hashTree>
 
         <!-- Получить начальное значение COUNT(*) -->
         <JDBCSampler guiclass="TestBeanGUI" testclass="JDBCSampler" testname="JDBC Request: Get Initial Count" enabled="true">
@@ -45,58 +47,36 @@
           <stringProp name="query">SELECT COUNT(*) FROM messages;</stringProp>
           <stringProp name="queryArguments"></stringProp>
           <stringProp name="queryArgumentsTypes"></stringProp>
-          <stringProp name="variableNames">initial_count</stringProp>
+          <stringProp name="variableNames">initialCount</stringProp>
           <stringProp name="resultSetHandler">Store as String</stringProp>
           <stringProp name="queryTimeout"></stringProp>
         </JDBCSampler>
 
         <hashTree>
-          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Parse initial_count as int" enabled="true">
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Parse initialCount as int" enabled="true">
             <stringProp name="scriptLanguage">groovy</stringProp>
             <stringProp name="parameters"></stringProp>
             <stringProp name="filename"></stringProp>
             <stringProp name="cacheKey">true</stringProp>
             <stringProp name="script">
-            if (vars.get("initial_count") == null || vars.get("initial_count") == "") {
-    vars.put("initial_count", "0")
-} else {
-    try {
-        def val = Integer.parseInt(vars.get("initial_count"))
-        vars.put("initial_count", val.toString())
-    } catch (Exception e) {
-        vars.put("initial_count", "0")
-    }
-}</stringProp>
+def metricsPerMessage = 4850
+def totalThreads = 15 // или получить из проперти/vars, если нужно
+def initialCountStr = vars.get("initialCount") ?: "0"
+def initialCount = initialCountStr.toInteger()
+def expectedCount = initialCount + metricsPerMessage * totalThreads
+vars.put("expectedCount", expectedCount.toString())
+vars.put("startWaitTime", String.valueOf(System.currentTimeMillis()))
+</stringProp>
           </JSR223PostProcessor>
           <hashTree/>
         </hashTree>
 
-        <!-- JSR223 Sampler: инициализация времени старта ожидания -->
-        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Init Wait Start Time" enabled="true">
-          <stringProp name="scriptLanguage">groovy</stringProp>
-          <stringProp name="parameters"></stringProp>
-          <stringProp name="filename"></stringProp>
-          <stringProp name="cacheKey">true</stringProp>
-          <stringProp name="script">
-if (vars.get("startWaitTime") == null) {
-    vars.put("startWaitTime", String.valueOf(System.currentTimeMillis()))
-}
-          </stringProp>
-        </JSR223Sampler>
-        <hashTree/>
-
         <!-- WhileController: ждем появления всех записей или таймаута -->
         <WhileController guiclass="WhileControllerGui" testclass="WhileController" testname="Wait for all messages" enabled="true">
           <stringProp name="WhileController.condition">
-            ${__groovy(
-              def msg = vars.get('msg_count');
-              def init = vars.get('initial_count');              
-              msg = (msg == null &#124;&#124; msg == '') ? '0' : msg;
-              init = (init == null &#124;&#124; init == '') ? '0' : init;
-              Integer.parseInt(msg) &lt; (Integer.parseInt(init) + (15*4850))
-            )}
+            ${__groovy(Integer.parseInt(vars.get('currentCount') ?: '0') &lt; Integer.parseInt(vars.get('expectedCount') ?: '0'))}
           </stringProp>
-                 <!--(parseInt(${msg_count}) &lt; (parseInt(${initial_count}) + (3*4850))) &amp;&amp; ((Date.now() - parseInt(${startWaitTime})) &lt; 600000)-->          
+                 <!--(parseInt(${currentCount}) &lt; (parseInt(${initialCount}) + (3*4850))) &amp;&amp; ((Date.now() - parseInt(${startWaitTime})) &lt; 600000)-->          
         </WhileController>
         <hashTree>
           
@@ -106,44 +86,24 @@ if (vars.get("startWaitTime") == null) {
             <stringProp name="query">SELECT COUNT(*) FROM messages;</stringProp>
             <stringProp name="queryArguments"></stringProp>
             <stringProp name="queryArgumentsTypes"></stringProp>
-            <stringProp name="variableNames">msg_count</stringProp>
+            <stringProp name="variableNames">currentCount</stringProp>
             <stringProp name="resultSetHandler">Store as String</stringProp>
             <stringProp name="queryTimeout"></stringProp>
           </JDBCSampler>
-
           <hashTree>
-            <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Parse msg_count as int" enabled="true">
+            <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Log Vars to jmeter.log" enabled="true">
               <stringProp name="scriptLanguage">groovy</stringProp>
               <stringProp name="parameters"></stringProp>
               <stringProp name="filename"></stringProp>
               <stringProp name="cacheKey">true</stringProp>
               <stringProp name="script">
-if (vars.get("msg_count") == null || vars.get("msg_count") == "") {
-    vars.put("msg_count", "0")
-} else {
-    try {
-        def val = Integer.parseInt(vars.get("msg_count"))
-        vars.put("msg_count", val.toString())
-    } catch (Exception e) {
-        vars.put("msg_count", "0")
-    }
-}
+log.info("!currentCount=" + vars.get("currentCount"))
+log.info("!expected_Count=" + vars.get("initialCount") + (15*4850))
+log.info("!initialCount=" + vars.get("initialCount"))
               </stringProp>
-            </JSR223PostProcessor>
+            </JSR223Sampler>
             <hashTree/>
-
-        <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="Log Vars to jmeter.log" enabled="true">
-          <stringProp name="scriptLanguage">groovy</stringProp>
-          <stringProp name="parameters"></stringProp>
-          <stringProp name="filename"></stringProp>
-          <stringProp name="cacheKey">true</stringProp>
-          <stringProp name="script">
-log.info("!msg_count=" + vars.get("msg_count"))
-log.info("!expected_Count=" + vars.get("initial_count") + (15*4850))
-log.info("!initial_count=" + vars.get("initial_count"))
-          </stringProp>
-        </JSR223Sampler>
-        <hashTree/>
+          </hashTree>
 
           </hashTree>
 
@@ -154,7 +114,7 @@ log.info("!initial_count=" + vars.get("initial_count"))
           
         </hashTree>
       </hashTree>
-
+    </hashTree>
 
       <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
         <boolProp name="ResultCollector.error_logging">false</boolProp>

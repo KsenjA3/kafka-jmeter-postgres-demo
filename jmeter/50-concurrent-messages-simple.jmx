@@ -114,13 +114,13 @@
           <stringProp name="filename"></stringProp>
           <stringProp name="cacheKey">true</stringProp>
           <stringProp name="script">
-def metricsPerMessage = 4850
-def totalThreads = 3 // или получить из проперти/vars, если нужно
-def initialCountStr = vars.get("initialCount") ?: "0"
-def initialCount = initialCountStr.toInteger()
-def expectedCount = initialCount + metricsPerMessage * totalThreads
-vars.put("expectedCount", expectedCount.toString())
-vars.put("startWaitTime", String.valueOf(System.currentTimeMillis()))
+				def metricsPerMessage = 4850
+				def totalThreads = 3 // или получить из проперти/vars, если нужно
+				def initialCountStr = vars.get("initialCount") ?: "0"
+				def initialCount = initialCountStr.toInteger()
+				def expectedCount = initialCount + metricsPerMessage * totalThreads
+				vars.put("expectedCount", expectedCount.toString())
+				vars.put("startWaitTime", String.valueOf(System.currentTimeMillis()))
           </stringProp>
         </JSR223PostProcessor>
         <hashTree/>
@@ -156,7 +156,6 @@ vars.put("startWaitTime", String.valueOf(System.currentTimeMillis()))
             <collectionProp name="Arguments.arguments"/>
           </elementProp>
         </HTTPSamplerProxy>
-
         <hashTree>
 
           <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract Current Count" enabled="true">
@@ -177,9 +176,9 @@ vars.put("startWaitTime", String.valueOf(System.currentTimeMillis()))
           <stringProp name="filename"></stringProp>
           <stringProp name="cacheKey">true</stringProp>
           <stringProp name="script">
-log.info("currentCount=" + vars.get("currentCount"))
-log.info("expectedCount=" + vars.get("expectedCount"))
-log.info("initialCount=" + vars.get("initialCount"))
+              log.info("currentCount=" + vars.get("currentCount"))
+              log.info("expectedCount=" + vars.get("expectedCount"))
+              log.info("initialCount=" + vars.get("initialCount"))
           </stringProp>
         </JSR223Sampler>
         <hashTree/>
@@ -195,10 +194,10 @@ log.info("initialCount=" + vars.get("initialCount"))
         <stringProp name="filename"></stringProp>
         <stringProp name="cacheKey">true</stringProp>
         <stringProp name="script">
-def waited = (System.currentTimeMillis() - Long.parseLong(vars.get("startWaitTime"))) / 1000
-log.info("Ожидание завершено. Текущее количество: " + vars.get("currentCount") +
-         ", Ожидалось: " + vars.get("expectedCount") +
-         ", Ждали секунд: " + waited)
+            def waited = (System.currentTimeMillis() - Long.parseLong(vars.get("startWaitTime"))) / 1000
+            log.info("Ожидание завершено. Текущее количество: " + vars.get("currentCount") +
+                    ", Ожидалось: " + vars.get("expectedCount") +
+                    ", Ждали секунд: " + waited)
         </stringProp>
       </JSR223Sampler>
       <hashTree/>
